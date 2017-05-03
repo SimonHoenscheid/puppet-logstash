@@ -137,6 +137,8 @@ class logstash(
   $service_provider  = undef,
   $settings          = {},
   $startup_options   = {},
+  $java_install      = false,
+  $java_package      = undef,
   $jvm_options       = [],
   $manage_repo       = true,
   $repo_version      = '5.x',
@@ -148,6 +150,7 @@ class logstash(
   validate_bool($restart_on_change)
   validate_bool($purge_config)
   validate_bool($manage_repo)
+  validate_bool($java_install)
 
   if ! ($ensure in [ 'present', 'absent' ]) {
     fail("\"${ensure}\" is not a valid ensure parameter value")
@@ -166,6 +169,21 @@ class logstash(
     validate_string($repo_version)
     include logstash::repo
   }
+
+  if $java_install == true {
+    # Install java
+    class { '::java':
+      package      => $java_package,
+      distribution => 'jre',
+    }
+
+    # ensure we first install java, the package and then the rest
+    Class['::java']
+    -> Class['logstash::package']
+    -> Class['logstash::config']
+    -> Class['logstash::service']
+  }
+
   include logstash::package
   include logstash::config
   include logstash::service
